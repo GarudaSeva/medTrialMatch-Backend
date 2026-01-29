@@ -2,3 +2,8 @@ flask
 flask-cors
 pymongo
 python-dotenv
+
+# ML / Model
+numpy>=1.26.0
+opencv-python>=4.9.0
+tensorflow>=2.16.0
