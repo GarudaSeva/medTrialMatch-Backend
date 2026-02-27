@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from services.db import get_db
 from werkzeug.security import generate_password_hash, check_password_hash
+import re
 from datetime import datetime
 import os
 import random
@@ -8,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+
 load_dotenv()
 
 auth_bp = Blueprint("auth_bp", __name__)
@@ -40,6 +42,29 @@ def send_otp_email(to_email, otp):
         print(f"Email send error: {e}")
         return False
 
+def validate_auth_data(email, password, username=None):
+    # Email validation
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        return "Invalid email format"
+    
+    # Password validation: min 8 chars, 1 upper, 1 lower, 1 digit, 1 special
+    if len(password) < 8:
+        return "Password must be at least 8 characters long"
+    if not re.search(r'[A-Z]', password):
+        return "Password must contain at least one uppercase letter"
+    if not re.search(r'[a-z]', password):
+        return "Password must contain at least one lowercase letter"
+    if not re.search(r'\d', password):
+        return "Password must contain at least one digit"
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return "Password must contain at least one special character"
+    
+    if username is not None and not username.strip():
+        return "Username cannot be empty"
+        
+    return None
+
 # ------------------------
 # SIGNUP API
 # ------------------------
@@ -53,6 +78,11 @@ def signup():
 
     if not username or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
+
+    # Strict Validation
+    validation_error = validate_auth_data(email, password, username)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
 
     # Check if email already exists
     if users_col.find_one({"email": email}):
